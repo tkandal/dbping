@@ -17,7 +17,7 @@ func NewNeo4JPing(uri string) Pinger {
 }
 
 // Ping runs the given query with optional parameters and return nil if successful,- or an error otherwise.
-// The query must be a legal query in order to give a correct result.  The returned error will indicate what
+// The given query must be a legal query in order to give a correct result.  The returned error will indicate what
 // is incorrect in case the query is illegal.
 // Also care should be taken so that the query does not return too many rows,- it is after all, just to see
 // if the database is available.
