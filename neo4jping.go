@@ -7,21 +7,22 @@ import (
 	"time"
 )
 
-type neo4JPing struct {
+// Neo4JPing is pinger for a Neo4J database
+type Neo4JPing struct {
 	uri string
 }
 
-// NewNeo4JPing returns a db pinger for Neo4J
-func NewNeo4JPing(uri string) Pinger {
-	return &neo4JPing{uri: uri}
+// NewNeo4JPing returns a database pinger for Neo4J
+func NewNeo4JPing(uri string) *Neo4JPing {
+	return &Neo4JPing{uri: uri}
 }
 
 // Ping runs the given query with optional parameters and return nil if successful,- or an error otherwise.
 // The given query must be a legal query in order to give a correct result.  The returned error will indicate what
 // is incorrect in case the query is illegal.
 // Also care should be taken so that the query does not return too many rows,- it is after all, just to see
-// if the database is available.
-func (np *neo4JPing) Ping(query string, params map[string]interface{}) error {
+// if the database is available
+func (np *Neo4JPing) Ping(query string, params map[string]interface{}) error {
 	conn, err := createConnection(np.uri)
 	if err != nil {
 		return fmt.Errorf("create connection failed; error = %v", err)
