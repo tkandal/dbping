@@ -1,6 +1,7 @@
 package dbping
 
 import (
+	"context"
 	"fmt"
 	bolt "github.com/tkandal/golang-neo4j-bolt-driver"
 	"io"
@@ -22,8 +23,8 @@ func NewNeo4JPing(uri string) *Neo4JPing {
 // is incorrect in case the query is illegal.
 // Also care should be taken so that the query does not return too many rows,- it is after all, just to see
 // if the database is available
-func (np *Neo4JPing) Ping(query string, params map[string]interface{}) error {
-	conn, err := createConnection(np.uri)
+func (np *Neo4JPing) Ping(ctx context.Context, query string, params map[string]interface{}) error {
+	conn, err := createConnection(ctx, np.uri)
 	if err != nil {
 		return fmt.Errorf("create connection failed; error = %v", err)
 	}
@@ -42,27 +43,36 @@ func (np *Neo4JPing) Ping(query string, params map[string]interface{}) error {
 	defer rows.Close()
 
 	for {
-		_, _, err = rows.NextNeo()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("next row failed; error = %v", err)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			data, _, err := rows.NextNeo()
+			if err == io.EOF || data == nil {
+				return nil
+			}
+			if err != nil {
+				return fmt.Errorf("next row failed; error = %v", err)
+			}
 		}
 	}
-	return nil
 }
 
-func createConnection(neo4jURI string) (bolt.Conn, error) {
+func createConnection(ctx context.Context, neo4jURI string) (bolt.Conn, error) {
 	driver := bolt.NewDriver()
 	conn, err := driver.OpenNeo(neo4jURI)
 	if err != nil {
-		time.Sleep(500 * time.Millisecond)
-		tries := 1
-		for err != nil && tries < 3 {
-			conn, err = driver.OpenNeo(neo4jURI)
-			time.Sleep(time.Duration(tries) * time.Second)
-			tries++
+		for tries := 1; tries < 3 && err != nil; tries++ {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+				time.Sleep(time.Duration(tries) * time.Second)
+				conn, err = driver.OpenNeo(neo4jURI)
+			}
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
 	return conn, err
